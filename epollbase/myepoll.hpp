@@ -13,6 +13,7 @@
 #include<iostream>
 #include<pthread.h>
 #include<atomic> //记录epollfd上的事件数
+#include"../ThreadPool/threadpool.hpp"
 
 
 const int maxEventSize = 4096;
@@ -40,6 +41,40 @@ public:
             int narr = epoll_wait(epfd_, evArray_, maxEventSize, -1);
             for(int i=0; i<narr; i++){
                   //!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if(evArray_[i].events & EPOLLIN){
+                    //读事件
+                    char buff[3096];
+                    bzero(buff, 3096);
+                    int ret = recv(evArray_[i].data.fd, buff, 3096, 0);
+                    if(0 > ret){
+                        if(errno == EAGAIN||errno==EWOULDBLOCK){
+                            //出现在非阻塞模式
+                            continue;
+                        }
+                        perror("recv");
+                    }else if(0 == ret){
+                        //客户端退出
+                        delEvent(evArray_[i].data.fd);
+
+                    }else{
+                        //向线程池提交任务
+
+                    }
+
+                }else if(evArray_[i].events & EPOLLERR){
+                    //发生错误
+                    delEvent(evArray_[i].data.fd);
+
+
+                }else if(evArray_[i].events & EPOLLHUP){
+                    //客户端断开
+
+                    delEvent(evArray_[i].data.fd);
+
+                }else{
+                    //其他...
+                }
+
             }
 
         }
@@ -84,6 +119,7 @@ private:
     std::atomic_int eventSize_; //当前事件数量
     int epfd_; //
     struct epoll_event evArray_[maxEventSize]; //发生变化的
+    ThreadPool pool_; //工作线程池
 
 };
 
