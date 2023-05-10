@@ -14,13 +14,13 @@
 MyEpoll* EpollThreadArr[2];
 int ptrEpoll = 0;
 int epollSize = 2;
-
+int sfd = -1; //socketfd
 
 //创建epollfd的线程函数 arg==> 你给一个索引
 void* epollFdThreadFuc(void *arg){
     //创建两个epollfd
     MyEpoll** p = static_cast<MyEpoll**>(arg);
-    *p =  new MyEpoll();
+    *p =  new MyEpoll(sfd);
 
     std::cout<<"epollThread start..."<<std::endl;
     (*p)->listen_wait();
@@ -33,7 +33,7 @@ void* epollFdThreadFuc(void *arg){
 int main(){
 
     //创建套接子
-    int sfd = socket(AF_INET, SOCK_STREAM, 0);
+    sfd = socket(AF_INET, SOCK_STREAM, 0);
     if(-1 == sfd){
         perror("socket ");
         return 1;

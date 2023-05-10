@@ -22,8 +22,9 @@ const int maxEventSize = 4096;
 
 class MyEpoll{
 public:
-    MyEpoll()
-        :eventSize_(0)
+    MyEpoll(int socketFd = -1)
+        :socketFd_(socketFd)
+        ,eventSize_(0)
          ,epfd_(-1)
     {
         epfd_ = epoll_create(1);
@@ -59,7 +60,7 @@ public:
 
                     }else{
                         //向线程池提交任务
-                        std::shared_ptr<MyHttp> taskptr(new MyHttp(evArray_[i].data.fd, buff));
+                        std::shared_ptr<MyHttp> taskptr(new MyHttp(socketFd_, evArray_[i].data.fd, buff));
                         pool_.commitTask(taskptr);
 
                     }
@@ -120,6 +121,7 @@ public:
      
 
 private:
+    int socketFd_; //服务端socketfd
     std::atomic_int eventSize_; //当前事件数量
     int epfd_; //
     struct epoll_event evArray_[maxEventSize]; //发生变化的

@@ -17,8 +17,9 @@ using namespace std;
 class MyHttp:public MyTask{
 public:
 
-    MyHttp(int cfd = -1, string request = "")
+    MyHttp(int socketfd = -1, int cfd = -1, string request = "")
         :request_(request)
+        ,socketFd_(socketfd)
         ,cfd_(cfd)
     {
         //解析请求
@@ -152,6 +153,7 @@ private:
     string  protocol_; //协议版本
     string url_; //请求路由
     string data_; //请求具体内容数据
+    int socketFd_; //服务端fd
     int cfd_; //客户端fd
     string cilentIp_; //客户端ip
     int cilentPort_;  //客户端port
