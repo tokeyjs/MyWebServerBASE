@@ -1,12 +1,15 @@
 #ifndef MYHTTP_H
 #define MYHTTP_H
 
+#include <cerrno>
 #include<stdio.h>
 #include<sys/socket.h>
 #include<sys/sendfile.h>
 #include<unistd.h>
 #include<arpa/inet.h>
+#include<fcntl.h>
 #include<string>
+#include<sys/stat.h>
 #include<string.h>
 #include"../ThreadPool/mytask.hpp"
 #include<sys/types.h>
@@ -22,6 +25,7 @@ public:
         ,socketFd_(socketfd)
         ,cfd_(cfd)
     {
+        dirname_ = "../data";
         //解析请求
         analyseHttp();
 
@@ -55,7 +59,37 @@ public:
 private:
     //处理GET请求
     void dealGetRequest(){
-    
+      string path = dirname_+url_;     
+      struct stat buf;
+      int ret = stat( path.c_str(), &buf);
+      if(-1 == ret){
+        if(errno == ENOENT){
+          //文件不存在
+          //发送error.html
+          path = dirname_ + "/error.html";
+          //发头部
+          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())));
+          sendFile(path);
+          return;
+        }  
+        perror("stat");
+      }
+      
+      //是目录
+      if(buf.st_mode & S_IFDIR){
+          path = dirname_ + "/error.html";
+          
+          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())));
+          sendFile(path);
+      }else if(buf.st_mode & S_IFREG){
+          //常规文件
+          sendHttpHead(200, "OK", get_mime_type(const_cast<char*>(path.c_str())));
+          sendFile(path);
+      }else {
+          path = dirname_ + "/error.html";
+          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())));
+          sendFile(path); 
+      }
     
     }
 
@@ -70,14 +104,24 @@ private:
     } 
 
     //发送http头部包
-    void sendHttpHead(){
-    
+    void sendHttpHead(int code, const char* info, const char *contenttype){
+      char buf[512];
+      int len_ = sprintf(buf, "HTTP/1.1 %d %s\r\nContent-Type:%s\r\n\r\n"
+                         ,code, info, contenttype);
+      send(cfd_, buf, len_, 0);
     }
 
     //0拷贝发送文件
     void sendFile(string filename){
-    
-    
+      int fd = open(filename.c_str(), O_RDWR); 
+      if(-1 == fd){
+        perror("open");
+        return;
+      }
+      struct stat sbuf;
+      stat(filename.c_str(), &sbuf);
+      sendfile(cfd_, fd, NULL, sbuf.st_size);    
+      close(fd);
     }
 
       //分析客户端信息
@@ -148,7 +192,8 @@ private:
        protocol_ = p;
     }
 
-    string request_; //请求内容
+    string request_;//请求内容
+    string dirname_; //资源目录
     string method_; //请求方法
     string  protocol_; //协议版本
     string url_; //请求路由
