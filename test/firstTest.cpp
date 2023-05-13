@@ -53,7 +53,7 @@ int main(int narg, char * args[]){
     chdir(workdir);
     
     //创建log
-    Log::getInstance()->initLog("./", "myhttp");
+    //Log::getInstance()->initLog("./", "myhttp");
 
     //创建套接子
     sfd = socket(AF_INET, SOCK_STREAM, 0);

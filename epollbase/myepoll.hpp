@@ -28,7 +28,7 @@ public:
          ,epfd_(-1)
     {
         epfd_ = epoll_create(1);
-        //pool_.setModel(CACHE); //设置动态增长线程
+        pool_.setModel(CACHE); //设置动态增长线程
     }
     ~MyEpoll(){
    
@@ -47,7 +47,7 @@ public:
                     if(0 > ret){
                         if(errno == EAGAIN||errno==EWOULDBLOCK){
                             //出现在非阻塞模式
-                            LOG_WARN("recv EAGAN|EWOULDBLOCK");
+                            //LOG_WARN("recv EAGAN|EWOULDBLOCK");
                             continue;
                         }
                         perror("recv");
@@ -66,16 +66,16 @@ public:
                 }else if(evArray_[i].events & EPOLLERR){
                     //发生错误
                     delEvent(evArray_[i].data.fd);
-                    LOG_WARN(" EPOLLERR");
+                    //LOG_WARN(" EPOLLERR");
 
                 }else if(evArray_[i].events & EPOLLHUP){
                     //客户端断开
-                    LOG_INFO(" EPOLLHUP");
+                    //LOG_INFO(" EPOLLHUP");
                     delEvent(evArray_[i].data.fd);
 
                 }else{
                     //其他...
-                    LOG_WARN("Other Event");
+                    //LOG_WARN("Other Event");
                     delEvent(evArray_[i].data.fd);
                 }
 

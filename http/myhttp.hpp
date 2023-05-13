@@ -84,7 +84,7 @@ private:
           sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())), getFileSize(path));
           sendFile(path);
           
-          LOG_WARN("no such file");
+          //LOG_WARN("no such file");
           return;
         }  
         perror("stat");
@@ -97,7 +97,7 @@ private:
           sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())),getFileSize(path));
           sendFile(path);
 
-        LOG_WARN("request is dir");    
+        //LOG_WARN("request is dir");    
 
       }else if(buf.st_mode & S_IFREG){
           //常规文件
@@ -108,7 +108,7 @@ private:
           sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())),getFileSize(path));
           sendFile(path); 
 
-          LOG_WARN("request noreg file");
+          //LOG_WARN("request noreg file");
       }
     
     }
