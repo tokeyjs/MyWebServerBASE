@@ -10,8 +10,10 @@
 #include<fcntl.h>
 #include<string>
 #include<sys/stat.h>
+#include<sys/epoll.h>
 #include<string.h>
 #include"../ThreadPool/mytask.hpp"
+#include"../log/log.hpp"
 #include<sys/types.h>
 #include<sys/socket.h>
 using namespace std;
@@ -20,12 +22,12 @@ using namespace std;
 class MyHttp:public MyTask{
 public:
 
-    MyHttp(int socketfd = -1, int cfd = -1, string request = "")
+    MyHttp(int epfd = -1, int cfd = -1, string request = "")
         :request_(request)
-        ,socketFd_(socketfd)
+        ,epFd_(epfd)
         ,cfd_(cfd)
     {
-        dirname_ = "../data";
+        dirname_ = "./data";
         //解析请求
         analyseHttp();
 
@@ -52,6 +54,17 @@ public:
             dealOtherRequest();
 
         }
+        /*
+        //关闭连接
+        int ret = epoll_ctl(epFd_, EPOLL_CTL_DEL, cfd_, NULL);
+        close(cfd_);
+        std::cout<<cfd_<<" exit..."<<std::endl;
+        */
+        struct epoll_event ev ;
+        ev.data.fd = cfd_;
+        ev.events = EPOLLHUP|EPOLLERR|EPOLLIN|EPOLLET| EPOLLONESHOT;
+        epoll_ctl(epFd_, EPOLL_CTL_MOD, cfd_, &ev);    
+
         return Any();
     }
 
@@ -68,8 +81,10 @@ private:
           //发送error.html
           path = dirname_ + "/error.html";
           //发头部
-          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())));
+          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())), getFileSize(path));
           sendFile(path);
+          
+          LOG_WARN("no such file");
           return;
         }  
         perror("stat");
@@ -79,16 +94,21 @@ private:
       if(buf.st_mode & S_IFDIR){
           path = dirname_ + "/error.html";
           
-          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())));
+          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())),getFileSize(path));
           sendFile(path);
+
+        LOG_WARN("request is dir");    
+
       }else if(buf.st_mode & S_IFREG){
           //常规文件
-          sendHttpHead(200, "OK", get_mime_type(const_cast<char*>(path.c_str())));
+          sendHttpHead(200, "OK", get_mime_type(const_cast<char*>(path.c_str())),getFileSize(path));
           sendFile(path);
       }else {
           path = dirname_ + "/error.html";
-          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())));
+          sendHttpHead(404, "Not Found", get_mime_type(const_cast<char*>(path.c_str())),getFileSize(path));
           sendFile(path); 
+
+          LOG_WARN("request noreg file");
       }
     
     }
@@ -104,10 +124,18 @@ private:
     } 
 
     //发送http头部包
-    void sendHttpHead(int code, const char* info, const char *contenttype){
+    void sendHttpHead(int code, const char* info, const char *contenttype, int contentLen, bool sendLenth = true){
       char buf[512];
-      int len_ = sprintf(buf, "HTTP/1.1 %d %s\r\nContent-Type:%s\r\n\r\n"
+      int len_;
+      //这个长度有时横重要==不写浏览器就会一直加载除非closefd
+      if(sendLenth){
+        len_ = sprintf(buf, "HTTP/1.1 %d %s\r\nContent-Type:%s\r\nContent-Length:%d\r\n\r\n"
+                         ,code, info, contenttype, contentLen);
+      }else{
+        len_ = sprintf(buf, "HTTP/1.1 %d %s\r\nContent-Type:%s\r\n\r\n"
                          ,code, info, contenttype);
+      }
+      
       send(cfd_, buf, len_, 0);
     }
 
@@ -191,6 +219,13 @@ private:
        url_ = url;
        protocol_ = p;
     }
+    
+    //求文件大小
+    int getFileSize(string filename){
+      struct stat sbuf;
+      stat(filename.c_str(), &sbuf);
+      return sbuf.st_size;
+    }
 
     string request_;//请求内容
     string dirname_; //资源目录
@@ -198,7 +233,7 @@ private:
     string  protocol_; //协议版本
     string url_; //请求路由
     string data_; //请求具体内容数据
-    int socketFd_; //服务端fd
+    int epFd_; //服务端fd
     int cfd_; //客户端fd
     string cilentIp_; //客户端ip
     int cilentPort_;  //客户端port

@@ -15,10 +15,10 @@
 #include<atomic> //记录epollfd上的事件数
 #include"../ThreadPool/threadpool.hpp"
 #include"../http/myhttp.hpp"
+#include<fcntl.h>
 
 
 const int maxEventSize = 4096;
-
 
 class MyEpoll{
 public:
@@ -28,13 +28,10 @@ public:
          ,epfd_(-1)
     {
         epfd_ = epoll_create(1);
-
-    
+        pool_.setModel(CACHE); //设置动态增长线程
     }
     ~MyEpoll(){
-    
-    
-    
+   
     }
     //wait
     void listen_wait(){
@@ -42,7 +39,6 @@ public:
             //等待监听事件的改变
             int narr = epoll_wait(epfd_, evArray_, maxEventSize, -1);
             for(int i=0; i<narr; i++){
-                  //!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 if(evArray_[i].events & EPOLLIN){
                     //读事件
                     char buff[3096];
@@ -51,6 +47,7 @@ public:
                     if(0 > ret){
                         if(errno == EAGAIN||errno==EWOULDBLOCK){
                             //出现在非阻塞模式
+                            LOG_WARN("recv EAGAN|EWOULDBLOCK");
                             continue;
                         }
                         perror("recv");
@@ -60,23 +57,24 @@ public:
 
                     }else{
                         //向线程池提交任务
-                        std::shared_ptr<MyHttp> taskptr(new MyHttp(socketFd_, evArray_[i].data.fd, buff));
+                        std::shared_ptr<MyHttp> taskptr(new MyHttp(epfd_, evArray_[i].data.fd, buff));
                         pool_.commitTask(taskptr);
-
                     }
 
                 }else if(evArray_[i].events & EPOLLERR){
                     //发生错误
                     delEvent(evArray_[i].data.fd);
-
+                    LOG_WARN(" EPOLLERR");
 
                 }else if(evArray_[i].events & EPOLLHUP){
                     //客户端断开
-
+                    LOG_INFO(" EPOLLHUP");
                     delEvent(evArray_[i].data.fd);
 
                 }else{
                     //其他...
+                    LOG_WARN("Other Event");
+                    delEvent(evArray_[i].data.fd);
                 }
 
             }
@@ -86,7 +84,7 @@ public:
     }
     
     //epoll上注册事件
-    int addEvent(int cfd, int events = EPOLLIN){
+    int addEvent(int cfd, int events = EPOLLIN|EPOLLERR|EPOLLHUP){
         struct epoll_event ev ;
         ev.data.fd = cfd;
         ev.events = events;
@@ -105,14 +103,14 @@ public:
         return ret;
     }   
     //加上EPOLLONESHOT
-    int addOneShot(int cfd, int events = EPOLLIN){
+    int addOneShot(int cfd, int events = EPOLLIN|EPOLLERR|EPOLLHUP){
         struct epoll_event ev ;
         ev.data.fd = cfd;
         ev.events = events | EPOLLONESHOT;
         return epoll_ctl(epfd_, EPOLL_CTL_MOD, cfd, &ev);  
     }
       //去除EPOLLONESHOT
-    int delOneShot(int cfd, int events = EPOLLIN){
+    int delOneShot(int cfd, int events = EPOLLIN|EPOLLERR|EPOLLHUP){
         struct epoll_event ev ;
         ev.data.fd = cfd;
         ev.events = (events&(~EPOLLONESHOT));
