@@ -91,7 +91,7 @@ int main(int narg, char * args[]){
     while(1){
         //接受新客户端连接
         int cfd = accept(sfd, NULL, NULL);
-        std::cout<<"new "<<cfd<<std::endl;
+        //std::cout<<"new "<<cfd<<std::endl;
         //设置非阻塞
         setnonblocking(cfd);
         // write(cfd, "hello\n", 6);

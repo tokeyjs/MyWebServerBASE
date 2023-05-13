@@ -18,7 +18,7 @@
 #include<fcntl.h>
 
 
-const int maxEventSize = 4096;
+const int maxEventSize = 10240;
 
 class MyEpoll{
 public:
@@ -28,7 +28,7 @@ public:
          ,epfd_(-1)
     {
         epfd_ = epoll_create(1);
-        pool_.setModel(CACHE); //设置动态增长线程
+        //pool_.setModel(CACHE); //设置动态增长线程
     }
     ~MyEpoll(){
    
@@ -59,6 +59,8 @@ public:
                         //向线程池提交任务
                         std::shared_ptr<MyHttp> taskptr(new MyHttp(epfd_, evArray_[i].data.fd, buff));
                         pool_.commitTask(taskptr);
+                        
+                        eventSize_--;
                     }
 
                 }else if(evArray_[i].events & EPOLLERR){
@@ -98,7 +100,7 @@ public:
 
         int ret = epoll_ctl(epfd_, EPOLL_CTL_DEL, cfd, NULL);
         close(cfd);
-        std::cout<<cfd<<" exit..."<<std::endl;
+        //std::cout<<cfd<<" exit..."<<std::endl;
         eventSize_--;
         return ret;
     }   

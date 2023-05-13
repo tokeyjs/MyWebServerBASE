@@ -40,7 +40,7 @@ public:
     //处理request请求
     virtual Any run(){
     
-        std::cout<<cilentIp_<<":"<<cilentPort_<<" "<<method_<<" "<<url_<<" "<<protocol_<<std::endl;
+        //std::cout<<cilentIp_<<":"<<cilentPort_<<" "<<method_<<" "<<url_<<" "<<protocol_<<std::endl;
 
         //给客户端回复
         //send(cfd_, "hello",6,0);
@@ -54,17 +54,17 @@ public:
             dealOtherRequest();
 
         }
-        /*
+        
         //关闭连接
         int ret = epoll_ctl(epFd_, EPOLL_CTL_DEL, cfd_, NULL);
         close(cfd_);
-        std::cout<<cfd_<<" exit..."<<std::endl;
-        */
+        //std::cout<<cfd_<<" exit..."<<std::endl;
+        /*
         struct epoll_event ev ;
         ev.data.fd = cfd_;
         ev.events = EPOLLHUP|EPOLLERR|EPOLLIN|EPOLLET| EPOLLONESHOT;
         epoll_ctl(epFd_, EPOLL_CTL_MOD, cfd_, &ev);    
-
+        */
         return Any();
     }
 
